@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import pandas as pd
 from sklearn.utils import shuffle
 import sklearn
@@ -83,7 +84,6 @@ ytcomments_verlyn_drop.to_excel("subset3-verlyn-offensive.xlsx", index=False)
 #--------------------------------------------------------------------------------------------- PRE PROCESSING
 
 #pd.set_option('display.max_colwidth', None)
-
 dataset = pd.read_excel('../offensivedetection/clean datasets/mergedset4.xlsx')
 
 # Remove rows with NULL value
@@ -92,37 +92,20 @@ dataset = dataset.dropna().reset_index(drop=True)
 # Convert to lowercase
 dataset = dataset.apply(lambda x: x.astype(str).str.lower())
 
-#print(dataset.head(10))
-
 # Balance data set
-dataset_0 = dataset.loc[dataset['label'] == "y"][0:5]
-dataset_1 = dataset.loc[dataset['label'] == "n"][0:5]
-
-#print(type(dataset_0))
-#print(dataset_0)
-#print(type(dataset_1))
-#print(dataset_1)
+dataset_0 = dataset.loc[dataset['label'] == "y"][0:4]
+dataset_1 = dataset.loc[dataset['label'] == "n"][0:4]
 
 del dataset
 dataset = pd.concat([dataset_0, dataset_1], ignore_index=True)
-#print(dataset['label'].value_counts())
-
-#print(type(dataset))
-#print(dataset)
-
 # Just to shuffle
 dataset = shuffle(dataset)
 dataset_X = dataset[['comments']]
-print(dataset_X)
 dataset_y = dataset['label']
 
 #--------------------------------------------------------------------------------------------- DATA SPLIT
 
 X_train, X_test, y_train, y_test = train_test_split(dataset_X, dataset_y, test_size=0.20, random_state=42)
-#print("X_train:", X_train)
-#print("X_test:", X_test)
-#print("y_train:", y_train)
-#print("y_test:", y_test)
 
 #--------------------------------------------------------------------------------------------- FEATURE EXTRACTION METHODS
 
@@ -131,32 +114,68 @@ def word_count_per_doc(text):
 	tokenized = word_tokenize(cleaner(text))
 	return len(tokenized)
 
+def tokenize(text):
+	tokenized = word_tokenize(cleaner(text))
+	return (tokenized)
+
 def cleaner(text):
 	text = re.sub('[^a-zA-Z ]', '', str(text))
 	text = re.sub(' +', ' ', str(text))
 	cleaned_text = text.strip()
 	return cleaned_text
 
-def word_length(text):
-	return len(text)
+def wordFrequency(wlist):
+	wordlistinstring = ' '.join(wlist)
 
-#Total number of SENTENCES in a document
-def sentence_count_per_doc(text):
-	text = text.replace('…','.')
-	period_count = text.count('.')
-	question_count = text.count('?')
-	exclam_count = text.count('!')
-	return period_count+question_count+exclam_count #fix this later
+	wordfreq = []
+	for w in wlist:
+		wordfreq.append(wlist.count(w))
+
+	# print("String\n" + wordlistinstring +"\n")
+	# print("List\n" + str(wordlist) + "\n")
+	# print("Frequencies\n" + str(wordfreq) + "\n")
+	# print("Pairs\n" + str(list(zip(wordlist, wordfreq))))
+	return wordfreq
+
+
+#--------------------------------------------------------------------------------------------- Bar graph
+
+# Remove column name to remove from count
+dataset_X = dataset_X.rename(columns={"comments": ""})
+
+# feature 1 - total number of offensive comments
+f1 = len(dataset.loc[dataset['label'] == "y"])
+# feature 2 - total number of normal comments
+f2 = len(dataset.loc[dataset['label'] == "n"])
+# feature 3 - total number of offensive and normal comments
+f3 = len(dataset['comments'])
+
+# feature 4 - total number of times a word appears in a normal comment
+# feature 5 - total number of times a word appears in an offensive comment
+# feature 6 - total number of words that appear in all of the normal comments
+# feature 7 - total number of words that appear in all of the offensive comments
+# feature 8 - probability of seeing each word given that it is in a normal comment
+# feature 9 - probability of seeing each word given that it is in an offensive comment
+# feature 10 - initial guess/prior probability that a comment is a normal comment
+# feature 11 - initial guess/prior probability that a comment is an offensive comment
 
 wc = word_count_per_doc(dataset_X)
-wl = word_length(dataset_X)
-sc = sentence_count_per_doc(X_train)
+wl = tokenize(dataset_X)
+wf = wordFrequency(wl)
 
+print("f1: ", f1)
+print("f2: ", f2)
+print("f3: ", f3)
+
+# Total number of words in the dataset
 print("Word Count:", wc)
-print("wl:", wl)
-print("sc:", sc)
+print("List of Words: ", wl)
+print("Frequency: ", wf)
 
-
+x = wl;
+y = wf
+plt.bar(x,y)
+plt.show()
 
 
 
