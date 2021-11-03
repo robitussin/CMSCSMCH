@@ -132,16 +132,46 @@ def wordFrequency(wlist):
 		wordfreq.append(wlist.count(w))
 
 	# print("String\n" + wordlistinstring +"\n")
-	# print("List\n" + str(wordlist) + "\n")
+	# print("List\n" + str(wlist) + "\n")
 	# print("Frequencies\n" + str(wordfreq) + "\n")
-	# print("Pairs\n" + str(list(zip(wordlist, wordfreq))))
-	return wordfreq
+	#print("Pairs\n" + str(list(dict.fromkeys(zip(wlist, wordfreq)))))
+	wlist = list(dict.fromkeys(zip(wlist, wordfreq)))
+	#return wordfreq
+	return wlist
 
 
+def probability(wlist, total):
+
+	print("problist :", wlist)
+	print(type(wlist))
+	mylist = []
+	for i in range(len(wlist)):
+		for j in range(len(wlist[i])):
+			num = wlist[i][1]
+			print("num:", num)
+			print("total: ", total)
+			num = num / total
+			
+		mylist.append((wlist[i][0], num))
+	return mylist
 #--------------------------------------------------------------------------------------------- Bar graph
 
 # Remove column name to remove from count
 dataset_X = dataset_X.rename(columns={"comments": ""})
+
+wc = word_count_per_doc(dataset_X)
+wl = tokenize(dataset_X)
+wf = wordFrequency(wl)
+
+# Total number of words in the dataset
+#print("Word Count:", wc)
+#print("List of Words: ", wl)
+#print("Frequency: ", wf)
+
+#x = wl;
+#y = wf
+#plt.bar(x,y)
+#plt.show()
 
 # feature 1 - total number of offensive comments
 f1 = len(dataset.loc[dataset['label'] == "y"])
@@ -151,35 +181,48 @@ f2 = len(dataset.loc[dataset['label'] == "n"])
 f3 = len(dataset['comments'])
 
 # feature 4 - total number of times a word appears in a normal comment
+df = dataset.loc[dataset['label'] == "n"]
+df = df[['comments']]
+df = df.rename(columns={"comments": ""})
+f4 = wordFrequency(tokenize(df))
+
 # feature 5 - total number of times a word appears in an offensive comment
+df2 = dataset.loc[dataset['label'] == "y"]
+df2 = df2[['comments']]
+df2 = df2.rename(columns={"comments": ""})
+f5 = wordFrequency(tokenize(df2))
+
 # feature 6 - total number of words that appear in all of the normal comments
+f6 = len(tokenize(df))
+
 # feature 7 - total number of words that appear in all of the offensive comments
+f7 = len(tokenize(df2))
+
 # feature 8 - probability of seeing each word given that it is in a normal comment
+
+abc = f4
+defh = f6
+f8 = probability(abc, defh)
+
 # feature 9 - probability of seeing each word given that it is in an offensive comment
+abc = f5
+defh = f7
+
+f9 = probability(abc, defh)
+
 # feature 10 - initial guess/prior probability that a comment is a normal comment
 # feature 11 - initial guess/prior probability that a comment is an offensive comment
-
-wc = word_count_per_doc(dataset_X)
-wl = tokenize(dataset_X)
-wf = wordFrequency(wl)
 
 print("f1: ", f1)
 print("f2: ", f2)
 print("f3: ", f3)
-
-# Total number of words in the dataset
-print("Word Count:", wc)
-print("List of Words: ", wl)
-print("Frequency: ", wf)
-
-x = wl;
-y = wf
-plt.bar(x,y)
-plt.show()
-
-
-
-
+print("f4: ", f4)
+print("f5: ", f5)
+print(type(f5))
+print("f6: ", f6)
+print("f7: ", f7)
+print("f8: ", f8)
+print("f9: ", f9)
 
 
 
