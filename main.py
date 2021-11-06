@@ -12,9 +12,10 @@ from sklearn.metrics import confusion_matrix
 from sklearn.metrics import classification_report
 from sklearn.metrics import accuracy_score
 import numpy as np
+from sklearn.feature_extraction.text import CountVectorizer
+from nltk.corpus import stopwords
 
 """
-
 ytcomments_aly = pd.read_excel('../offensivedetection/datasets/subset2-aly.xlsx')
 ytcomments_aly_noduplicate = ytcomments_aly.drop_duplicates(subset=['COMMENTS'])
 
@@ -82,30 +83,59 @@ ytcomments_verlyn_drop.to_excel("subset3-verlyn-offensive.xlsx", index=False)
 """
 
 #--------------------------------------------------------------------------------------------- PRE PROCESSING
-
 #pd.set_option('display.max_colwidth', None)
-dataset = pd.read_excel('../offensivedetection/clean datasets/mergedset4.xlsx')
+dataset = pd.read_excel('../offensivedetection/clean datasets/mergedset.xlsx')
 
-# Remove rows with NULL value
+#Remove rows with NULL value
 dataset = dataset.dropna().reset_index(drop=True)
 
-# Convert to lowercase
+dataset = dataset.rename(columns={"COMMENTS": "comments", "OFFENSIVE (Y or N)": "label"})
+
+#print("Label value counts: ", dataset['label'].value_counts())
+
+#Convert to lowercase
 dataset = dataset.apply(lambda x: x.astype(str).str.lower())
 
-# Balance data set
-dataset_0 = dataset.loc[dataset['label'] == "y"][0:4]
-dataset_1 = dataset.loc[dataset['label'] == "n"][0:4]
+#--------------------------------------------------------------------------------------------- Balanced SPLIT
+#Balance data
+dataset_0 = dataset.loc[dataset['label'] == "y"][0:308]
+dataset_1 = dataset.loc[dataset['label'] == "n"][0:308]
 
-del dataset
-dataset = pd.concat([dataset_0, dataset_1], ignore_index=True)
-# Just to shuffle
-dataset = shuffle(dataset)
-dataset_X = dataset[['comments']]
-dataset_y = dataset['label']
+#del dataset
+dataset_bal = pd.concat([dataset_0, dataset_1], ignore_index=True)
+dataset_bal = pd.concat([dataset_1, dataset_0], ignore_index=True)
 
-#--------------------------------------------------------------------------------------------- DATA SPLIT
+dataset_bal = shuffle(dataset_bal)
+dataset_X = dataset_bal['comments']
+dataset_y = dataset_bal['label']
 
-X_train, X_test, y_train, y_test = train_test_split(dataset_X, dataset_y, test_size=0.20, random_state=42)
+X_train_bal, X_test_bal, y_train_bal, y_test_bal = train_test_split(dataset_X, dataset_y, test_size=0.30, random_state=42)
+
+X_train_bal.reset_index(drop=True, inplace=True)
+X_test_bal.reset_index(drop=True, inplace=True)
+y_train_bal.reset_index(drop=True, inplace=True)
+y_test_bal.reset_index(drop=True, inplace=True)
+#--------------------------------------------------------------------------------------------- UNBALANCED SPLIT
+
+# Unbalance data
+dataset_a = dataset.iloc[:, :-1].values
+dataset_b = dataset.iloc[:, -1].values
+
+dataset_a = pd.DataFrame(dataset_a, columns=['comments'])
+dataset_b = pd.DataFrame(dataset_b)
+
+X_train_unbal, X_test_unbal, y_train_unbal, y_test_unbal = train_test_split(dataset_a, dataset_b, test_size=0.30, random_state=42)
+
+
+X_train_unbal.reset_index(drop=True, inplace=True)
+X_test_unbal.reset_index(drop=True, inplace=True)
+y_train_unbal.reset_index(drop=True, inplace=True)
+y_test_unbal.reset_index(drop=True, inplace=True)
+#---------------------------------------------------------------------------------------------
+print("X_train :",X_train_unbal.shape)
+print("X_test :",X_test_unbal.shape)
+print("y_train :",y_train_unbal.shape)
+print("y_test :",y_test_unbal.shape)
 
 #--------------------------------------------------------------------------------------------- FEATURE EXTRACTION METHODS
 
@@ -141,27 +171,46 @@ def wordFrequency(wlist):
 
 
 def probability(wlist, total):
-
-	print("problist :", wlist)
-	print(type(wlist))
+	#print("problist :", wlist)
+	#print(type(wlist))
 	mylist = []
 	for i in range(len(wlist)):
 		for j in range(len(wlist[i])):
 			num = wlist[i][1]
-			print("num:", num)
-			print("total: ", total)
+			#print("num:", num)
+			#print("total: ", total)
 			num = num / total
-			
+
 		mylist.append((wlist[i][0], num))
 	return mylist
+
+def removestopwords(sentences):
+	sentences = list(sentences)
+	sentences = [word_tokenize(sentence) for sentence in sentences]
+	for i in range(len(sentences)):
+			sentences[i] = [word for word in sentences[i] if word not in stopwords.words('filipino')]
+	return sentences
+
+
+def avg_words_per_sentence(comment):
+	sentences = comment.split('.')
+	total_words = 0
+
+	for sentence in sentences:
+		total_words += word_count(sentence)
+
+	return (total_words / len(sentences))
+
+def word_count(article):
+  return len(article.split(' '))
 #--------------------------------------------------------------------------------------------- Bar graph
 
 # Remove column name to remove from count
-dataset_X = dataset_X.rename(columns={"comments": ""})
-
-wc = word_count_per_doc(dataset_X)
-wl = tokenize(dataset_X)
-wf = wordFrequency(wl)
+#dataset_X = dataset_X.rename(columns={"comments": ""})
+#print(dataset_X)
+#wc = word_count_per_doc(dataset_X)
+#wl = tokenize(dataset_X)
+#wf = wordFrequency(wl)
 
 # Total number of words in the dataset
 #print("Word Count:", wc)
@@ -211,8 +260,12 @@ defh = f7
 f9 = probability(abc, defh)
 
 # feature 10 - initial guess/prior probability that a comment is a normal comment
-# feature 11 - initial guess/prior probability that a comment is an offensive comment
+f10 = f2/(f2+f1)
 
+# feature 11 - initial guess/prior probability that a comment is an offensive comment
+f11 = f1/(f1+f2)
+
+"""
 print("f1: ", f1)
 print("f2: ", f2)
 print("f3: ", f3)
@@ -223,12 +276,99 @@ print("f6: ", f6)
 print("f7: ", f7)
 print("f8: ", f8)
 print("f9: ", f9)
+print("f10: ", f10)
+print("f11: ", f11)
+"""
+
+#--------------------------------------------------------------------------------------------- Training Features
+print("train: ", X_train_unbal)
+X_f1 = X_train_unbal['comments'].apply(avg_words_per_sentence)
+X_f1 = X_f1.rename('f11')
+
+vectorizer = CountVectorizer()
+vectorizer.fit_transform(X_train_unbal['comments'])
+fnames_train = vectorizer.get_feature_names_out()
+
+X_f2 = X_train_unbal['comments'].apply(removestopwords)
+X_f2 = vectorizer.transform(X_train_unbal['comments'])
+X_f2 = pd.DataFrame(X_f2.toarray())
+
+collected_features_unbal = pd.concat([X_f1, X_f2], axis=1)
+collected_features_unbal = collected_features_unbal.to_numpy();
+
+y_train_unbal = y_train_unbal.to_numpy();
+y_train_unbal = np.squeeze(y_train_unbal)
+#--------------------------------------------------------------------------------------------- Test Features
+print("test: ", X_test_unbal)
+
+X_f1_test = X_test_unbal['comments'].apply(avg_words_per_sentence)
+X_f1_test = X_f1_test.rename('f11')
+
+X_f2_test = X_test_unbal['comments'].apply(removestopwords)
+X_f2_test = vectorizer.transform(X_test_unbal['comments'])
+X_f2_test = pd.DataFrame(X_f2_test.toarray())
+fnames_test = vectorizer.get_feature_names_out()
+
+collected_features_test_unbal = pd.concat([X_f1_test, X_f2_test], axis=1)
+
+#--------------------------------------------------------------------------------------------- Predict
+mnb = MultinomialNB(alpha=1.0)
+mnb.fit(collected_features_unbal, y_train_unbal)
+
+y_pred = mnb.predict(collected_features_test_unbal)
+
+print("y_pred: ", y_pred)
+
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import classification_report
+
+print(classification_report(y_test_unbal, y_pred))
+
+"""
+# sample
+simple_test = ['gago puta akin']
+stpd = pd.DataFrame(data=simple_test, columns=['comments'])
+stpd['comments'] = stpd[['comments']].apply(removestopwords)
+simple_test2 = vectorizer.transform(simple_test)
+print(simple_test2.toarray())
+print(mnb.predict(simple_test2))
+
+mnb = MultinomialNB(alpha=1.0)
+vectorizer = CountVectorizer()
+X = vectorizer.fit_transform(sly.values.tolist())
+print("X: ", X.toarray())
+fnames = vectorizer.get_feature_names_out()
+
+print(X.shape)
+print(dataset_y.shape)
+mnb.fit(X, dataset_y)
+
+
+#example of predicting
+simple_test = ['Lunch money money money money money']
+simple_test2 = vectorizer.transform(simple_test)
+print(simple_test2.toarray())
+print(mnb.predict(simple_test2))
+
+
+#example of removing stop words and prediction
+simple_test = ['Lunch friend friend friend friend money akin']
+stpd = pd.DataFrame(data=simple_test, columns=['comments'])
+stpd['comments'] = stpd[['comments']].apply(removestopwords)
+print("abc:", stpd)
+simple_test2 = vectorizer.transform(simple_test)
+print(mnb.predict(simple_test2))
 
 
 
-
-
-
+#example of removing stop words and prediction
+simple_test = ['pogi']
+stpd = pd.DataFrame(data=simple_test, columns=['comments'])
+stpd['comments'] = stpd[['comments']].apply(removestopwords)
+print("abc:", stpd)
+simple_test2 = vectorizer.transform(simple_test)
+print(mnb.predict(simple_test2))
+"""
 
 
 
