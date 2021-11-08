@@ -15,6 +15,9 @@ import numpy as np
 from sklearn.feature_extraction.text import CountVectorizer
 from nltk.corpus import stopwords
 
+import emoji
+from better_profanity import profanity
+
 """
 ytcomments_aly = pd.read_excel('../offensivedetection/datasets/subset2-aly.xlsx')
 ytcomments_aly_noduplicate = ytcomments_aly.drop_duplicates(subset=['COMMENTS'])
@@ -101,12 +104,14 @@ dataset = dataset.apply(lambda x: x.astype(str).str.lower())
 dataset_0 = dataset.loc[dataset['label'] == "y"][0:308]
 dataset_1 = dataset.loc[dataset['label'] == "n"][0:308]
 
-#del dataset
+#dataset_0 = dataset.loc[dataset['label'] == "y"][0:5]
+#dataset_1 = dataset.loc[dataset['label'] == "n"][0:5]
+
 dataset_bal = pd.concat([dataset_0, dataset_1], ignore_index=True)
-dataset_bal = pd.concat([dataset_1, dataset_0], ignore_index=True)
+#dataset_bal = pd.concat([dataset_1, dataset_0], ignore_index=True)
 
 dataset_bal = shuffle(dataset_bal)
-dataset_X = dataset_bal['comments']
+dataset_X = dataset_bal[['comments']]
 dataset_y = dataset_bal['label']
 
 X_train_bal, X_test_bal, y_train_bal, y_test_bal = train_test_split(dataset_X, dataset_y, test_size=0.30, random_state=42)
@@ -115,6 +120,12 @@ X_train_bal.reset_index(drop=True, inplace=True)
 X_test_bal.reset_index(drop=True, inplace=True)
 y_train_bal.reset_index(drop=True, inplace=True)
 y_test_bal.reset_index(drop=True, inplace=True)
+
+#print("X_train :",X_train_bal.shape)
+#print("X_test :",X_test_bal.shape)
+#print("y_train :",y_train_bal.shape)
+#print("y_test :",y_test_bal.shape)
+
 #--------------------------------------------------------------------------------------------- UNBALANCED SPLIT
 
 # Unbalance data
@@ -126,16 +137,16 @@ dataset_b = pd.DataFrame(dataset_b)
 
 X_train_unbal, X_test_unbal, y_train_unbal, y_test_unbal = train_test_split(dataset_a, dataset_b, test_size=0.30, random_state=42)
 
-
 X_train_unbal.reset_index(drop=True, inplace=True)
 X_test_unbal.reset_index(drop=True, inplace=True)
 y_train_unbal.reset_index(drop=True, inplace=True)
 y_test_unbal.reset_index(drop=True, inplace=True)
+
 #---------------------------------------------------------------------------------------------
-print("X_train :",X_train_unbal.shape)
-print("X_test :",X_test_unbal.shape)
-print("y_train :",y_train_unbal.shape)
-print("y_test :",y_test_unbal.shape)
+#print("X_train_unbal :",X_train_unbal.shape)
+#print("X_test_unbal :",X_test_unbal.shape)
+#print("y_train_unbal :",y_train_unbal.shape)
+#print("y_test_unbal :",y_test_unbal.shape)
 
 #--------------------------------------------------------------------------------------------- FEATURE EXTRACTION METHODS
 
@@ -154,6 +165,7 @@ def cleaner(text):
 	cleaned_text = text.strip()
 	return cleaned_text
 
+"""
 def wordFrequency(wlist):
 	wordlistinstring = ' '.join(wlist)
 
@@ -168,23 +180,19 @@ def wordFrequency(wlist):
 	wlist = list(dict.fromkeys(zip(wlist, wordfreq)))
 	#return wordfreq
 	return wlist
-
+"""
 
 def probability(wlist, total):
-	#print("problist :", wlist)
-	#print(type(wlist))
 	mylist = []
 	for i in range(len(wlist)):
 		for j in range(len(wlist[i])):
 			num = wlist[i][1]
-			#print("num:", num)
-			#print("total: ", total)
 			num = num / total
 
 		mylist.append((wlist[i][0], num))
 	return mylist
 
-def removestopwords(sentences):
+def wordFrequency(sentences):
 	sentences = list(sentences)
 	sentences = [word_tokenize(sentence) for sentence in sentences]
 	for i in range(len(sentences)):
@@ -201,8 +209,63 @@ def avg_words_per_sentence(comment):
 
 	return (total_words / len(sentences))
 
-def word_count(article):
-  return len(article.split(' '))
+def word_count(comment):
+  return len(comment.split(' '))
+
+def countChars(comment):
+	return len(comment.replace(" ", "")) #do not include whitespace in character count
+
+def has_emoji(comment):
+		for character in comment:
+			if character in emoji.UNICODE_EMOJI['en']:
+				return True
+		return False
+
+def check_offensive_emojis(comment):
+   emojis = ''.join(character for character in comment if character in emoji.UNICODE_EMOJI['en'])
+
+   line = ["🖕", "💩", ""] #middle finger, pile of poo
+   for character in emojis:
+	   if character in line:
+		   return 1
+   return 0
+
+def extract_offensive_emojis(comment):
+	line = ["🖕", "💩", "🤬", "😠"] #middle finger, pile of poo, face with symbol on mouth, angry face
+	return ''.join(character for character in comment if character in line)
+
+def contains_english_swear_words(comment):
+	if profanity.contains_profanity(comment):
+		return 1
+	else:
+		return 0
+
+def consonant_count(comment):
+	comment = comment.lower()
+	total_consonant = 0
+
+	for i in comment:
+		if i == 'b' or i == 'c' or i == 'd' or i == 'f' or i == 'g' \
+				or i == 'h' or i == 'j' or i == 'k' or i == 'l' \
+				or i == 'm' or i == 'n' or i == 'p' or i == 'q' \
+				or i == 'r' or i == 's' or i == 't' or i == 'v' \
+				or i == 'w' or i == 'x' or i == 'y' or i == 'z':
+			total_consonant = total_consonant + 1;
+
+	return total_consonant
+
+def vowel_count(comment):
+	comment = comment.lower()
+	total_vowels = 0
+
+	for i in comment:
+		if i == 'a' or i == 'e' or i == 'i' or i == 'o' or i == 'u':
+			total_vowels = total_vowels + 1;
+	return total_vowels
+
+def space_count(comment):
+  return comment.count(' ')
+
 #--------------------------------------------------------------------------------------------- Bar graph
 
 # Remove column name to remove from count
@@ -221,156 +284,195 @@ def word_count(article):
 #y = wf
 #plt.bar(x,y)
 #plt.show()
-
-# feature 1 - total number of offensive comments
-f1 = len(dataset.loc[dataset['label'] == "y"])
-# feature 2 - total number of normal comments
-f2 = len(dataset.loc[dataset['label'] == "n"])
-# feature 3 - total number of offensive and normal comments
-f3 = len(dataset['comments'])
-
-# feature 4 - total number of times a word appears in a normal comment
-df = dataset.loc[dataset['label'] == "n"]
-df = df[['comments']]
-df = df.rename(columns={"comments": ""})
-f4 = wordFrequency(tokenize(df))
-
-# feature 5 - total number of times a word appears in an offensive comment
-df2 = dataset.loc[dataset['label'] == "y"]
-df2 = df2[['comments']]
-df2 = df2.rename(columns={"comments": ""})
-f5 = wordFrequency(tokenize(df2))
-
-# feature 6 - total number of words that appear in all of the normal comments
-f6 = len(tokenize(df))
-
-# feature 7 - total number of words that appear in all of the offensive comments
-f7 = len(tokenize(df2))
-
-# feature 8 - probability of seeing each word given that it is in a normal comment
-
-abc = f4
-defh = f6
-f8 = probability(abc, defh)
-
-# feature 9 - probability of seeing each word given that it is in an offensive comment
-abc = f5
-defh = f7
-
-f9 = probability(abc, defh)
-
-# feature 10 - initial guess/prior probability that a comment is a normal comment
-f10 = f2/(f2+f1)
-
-# feature 11 - initial guess/prior probability that a comment is an offensive comment
-f11 = f1/(f1+f2)
-
 """
-print("f1: ", f1)
-print("f2: ", f2)
-print("f3: ", f3)
-print("f4: ", f4)
-print("f5: ", f5)
-print(type(f5))
-print("f6: ", f6)
-print("f7: ", f7)
-print("f8: ", f8)
-print("f9: ", f9)
-print("f10: ", f10)
-print("f11: ", f11)
-"""
-
-#--------------------------------------------------------------------------------------------- Training Features
-print("train: ", X_train_unbal)
-X_f1 = X_train_unbal['comments'].apply(avg_words_per_sentence)
-X_f1 = X_f1.rename('f11')
+#--------------------------------------------------------------------------------------------- Training Features (Unbalanced)
+# feature 1 - Number of words
+X_f1_unbal = X_train_unbal['comments'].apply(avg_words_per_sentence)
+X_f1_unbal = X_f1_unbal.rename('f11')
 
 vectorizer = CountVectorizer()
 vectorizer.fit_transform(X_train_unbal['comments'])
 fnames_train = vectorizer.get_feature_names_out()
 
-X_f2 = X_train_unbal['comments'].apply(removestopwords)
-X_f2 = vectorizer.transform(X_train_unbal['comments'])
-X_f2 = pd.DataFrame(X_f2.toarray())
+# feature 2 - Word Frequency
+X_f2_unbal = X_train_unbal['comments'].apply(wordFrequency)
+X_f2_unbal = vectorizer.transform(X_train_unbal['comments'])
+X_f2_unbal = pd.DataFrame(X_f2_unbal.toarray())
 
-collected_features_unbal = pd.concat([X_f1, X_f2], axis=1)
+# feature 3 - Number of total characters in a comment
+X_f3_unbal = X_train_unbal['comments'].apply(countChars)
+
+# feature 4 - Check it the comment contains offensive emojis
+X_f4_unbal = X_train_unbal['comments'].apply(check_offensive_emojis)
+
+# feature 5 - If a comment contains an english swear word
+X_f5_unbal = X_train_unbal['comments'].apply(contains_english_swear_words)
+
+# feature 6 - Number of vowels in a comment
+X_f6_unbal = X_train_unbal['comments'].apply(vowel_count)
+
+# feature 7 - Number of consonants in a comment
+X_f7_unbal = X_train_unbal['comments'].apply(consonant_count)
+
+# feature 8 - Number of spaces in a comment
+X_f8_unbal = X_train_unbal['comments'].apply(space_count)
+
+collected_features_unbal = pd.concat([X_f1_unbal, X_f2_unbal, X_f3_unbal, X_f4_unbal, X_f5_unbal, X_f6_unbal, X_f7_unbal, X_f8_unbal], axis=1)
 collected_features_unbal = collected_features_unbal.to_numpy();
 
 y_train_unbal = y_train_unbal.to_numpy();
 y_train_unbal = np.squeeze(y_train_unbal)
-#--------------------------------------------------------------------------------------------- Test Features
-print("test: ", X_test_unbal)
+#--------------------------------------------------------------------------------------------- Test Features (Unbalanced)
+#print("test: ", X_test_unbal)
 
-X_f1_test = X_test_unbal['comments'].apply(avg_words_per_sentence)
-X_f1_test = X_f1_test.rename('f11')
+# feature 1 - Number of words
+X_f1_test_unbal = X_test_unbal['comments'].apply(avg_words_per_sentence)
+X_f1_test_unbal = X_f1_test_unbal.rename('f11')
 
-X_f2_test = X_test_unbal['comments'].apply(removestopwords)
-X_f2_test = vectorizer.transform(X_test_unbal['comments'])
-X_f2_test = pd.DataFrame(X_f2_test.toarray())
+# feature 2 - Word Frequency
+X_f2_test_unbal = X_test_unbal['comments'].apply(wordFrequency)
+X_f2_test_unbal = vectorizer.transform(X_test_unbal['comments'])
+X_f2_test_unbal = pd.DataFrame(X_f2_test_unbal.toarray())
 fnames_test = vectorizer.get_feature_names_out()
 
-collected_features_test_unbal = pd.concat([X_f1_test, X_f2_test], axis=1)
+# feature 3 - Number of total characters in a comment
+X_f3_test_unbal = X_test_unbal['comments'].apply(countChars)
 
-#--------------------------------------------------------------------------------------------- Predict
-mnb = MultinomialNB(alpha=1.0)
-mnb.fit(collected_features_unbal, y_train_unbal)
+# feature 4 - Check it the comment contains offensive emojis
+X_f4_test_unbal = X_test_unbal['comments'].apply(check_offensive_emojis)
 
-y_pred = mnb.predict(collected_features_test_unbal)
+# feature 5 - If a comment contains an english swear word
+X_f5_test_unbal = X_test_unbal['comments'].apply(contains_english_swear_words)
 
-print("y_pred: ", y_pred)
+# feature 6 - Number of vowels in a comment
+X_f6_test_unbal = X_test_unbal['comments'].apply(vowel_count)
+
+# feature 7 - Number of consonants in a comment
+X_f7_test_unbal = X_test_unbal['comments'].apply(consonant_count)
+
+# feature 8 - Number of spaces in a comment
+X_f8_test_unbal = X_test_unbal['comments'].apply(space_count)
+
+collected_features_test_unbal = pd.concat([X_f1_test_unbal, X_f2_test_unbal, X_f3_test_unbal, X_f4_test_unbal, X_f5_test_unbal, X_f6_test_unbal, X_f7_test_unbal, X_f8_test_unbal], axis=1)
+"""
+#--------------------------------------------------------------------------------------------- Training Features (Balanced)
+#print("balanced X train: ", X_train_bal)
+#print("type of X train bal: ", type(X_train_bal))
+# feature 1 - Number of words
+X_f1_bal = X_train_bal['comments'].apply(avg_words_per_sentence)
+X_f1_bal  = X_f1_bal .rename('f11')
+
+vectorizer = CountVectorizer()
+vectorizer.fit_transform(X_train_bal['comments'])
+fnames_train = vectorizer.get_feature_names_out()
+
+# feature 2 - Word Frequency
+X_f2_bal = X_train_bal['comments'].apply(wordFrequency)
+X_f2_bal = vectorizer.transform(X_train_bal['comments'])
+X_f2_bal = pd.DataFrame(X_f2_bal.toarray())
+
+# feature 3 - Number of total characters in a comment
+X_f3_bal = X_train_bal['comments'].apply(countChars)
+
+# feature 4 - Check it the comment contains offensive emojis
+X_f4_bal = X_train_bal['comments'].apply(check_offensive_emojis)
+
+# feature 5 - If a comment contains an english swear word
+X_f5_bal = X_train_bal['comments'].apply(contains_english_swear_words)
+
+# feature 6 - Number of vowels in a comment
+X_f6_bal = X_train_bal['comments'].apply(vowel_count)
+#print("X_f6:", X_f6)
+
+# feature 7 - Number of consonants in a comment
+X_f7_bal = X_train_bal['comments'].apply(consonant_count)
+#print("X_f7:", X_f7)
+
+# feature 8 - Number of spaces in a comment
+X_f8_bal = X_train_bal['comments'].apply(space_count)
+#print("X_f8:", X_f8)
+
+#print("X_f1: ", X_f1)
+#print("X_f2: ", X_f2)
+#print("X_f3: ", X_f3)
+#print("X_f4: ", X_f4)
+#print("X_f5: ", X_f5)
+#print("X_f6: ", X_f6)
+#print("X_f7: ", X_f7)
+#print("X_f8: ", X_f8)
+
+collected_features_bal = pd.concat([X_f1_bal, X_f2_bal, X_f3_bal, X_f4_bal, X_f5_bal, X_f6_bal, X_f7_bal, X_f8_bal], axis=1)
+collected_features_bal = collected_features_bal.to_numpy();
+
+y_train_bal = y_train_bal.to_numpy();
+y_train_bal = np.squeeze(y_train_bal)
+
+#--------------------------------------------------------------------------------------------- Test Features (Balanced)
+# feature 1 - Number of words
+X_f1_test_bal = X_test_bal['comments'].apply(avg_words_per_sentence)
+X_f1_test_bal = X_f1_test_bal.rename('f11')
+
+# feature 2 - Word Frequency
+X_f2_test_bal = X_test_bal['comments'].apply(wordFrequency)
+X_f2_test_bal = vectorizer.transform(X_test_bal['comments'])
+X_f2_test_bal = pd.DataFrame(X_f2_test_bal.toarray())
+fnames_test = vectorizer.get_feature_names_out()
+
+# feature 3 - Number of total characters in a comment
+X_f3_test_bal = X_test_bal['comments'].apply(countChars)
+
+# feature 4 - Check it the comment contains offensive emojis
+X_f4_test_bal = X_test_bal['comments'].apply(check_offensive_emojis)
+
+# feature 5 - If a comment contains an english swear word
+X_f5_test_bal = X_test_bal['comments'].apply(contains_english_swear_words)
+
+# feature 6 - Number of vowels in a comment
+X_f6_test_bal = X_test_bal['comments'].apply(vowel_count)
+
+# feature 7 - Number of consonants in a comment
+X_f7_test_bal= X_test_bal['comments'].apply(consonant_count)
+
+# feature 8 - Number of spaces in a comment
+X_f8_test_bal = X_test_bal['comments'].apply(space_count)
+
+collected_features_test_bal = pd.concat([X_f1_test_bal, X_f2_test_bal, X_f3_test_bal, X_f4_test_bal, X_f5_test_bal, X_f6_test_bal, X_f7_test_bal, X_f8_test_bal], axis=1)
+
+"""
+#--------------------------------------------------------------------------------------------- Predict (Unbalanced)
+mnb_unbal = MultinomialNB(alpha=1.0)
+mnb_unbal.fit(collected_features_unbal, y_train_unbal)
+y_pred_unbal = mnb_unbal.predict(collected_features_test_unbal)
 
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import classification_report
 
-print(classification_report(y_test_unbal, y_pred))
-
-"""
-# sample
-simple_test = ['gago puta akin']
-stpd = pd.DataFrame(data=simple_test, columns=['comments'])
-stpd['comments'] = stpd[['comments']].apply(removestopwords)
-simple_test2 = vectorizer.transform(simple_test)
-print(simple_test2.toarray())
-print(mnb.predict(simple_test2))
-
-mnb = MultinomialNB(alpha=1.0)
-vectorizer = CountVectorizer()
-X = vectorizer.fit_transform(sly.values.tolist())
-print("X: ", X.toarray())
-fnames = vectorizer.get_feature_names_out()
-
-print(X.shape)
-print(dataset_y.shape)
-mnb.fit(X, dataset_y)
-
-
-#example of predicting
-simple_test = ['Lunch money money money money money']
-simple_test2 = vectorizer.transform(simple_test)
-print(simple_test2.toarray())
-print(mnb.predict(simple_test2))
-
-
-#example of removing stop words and prediction
-simple_test = ['Lunch friend friend friend friend money akin']
-stpd = pd.DataFrame(data=simple_test, columns=['comments'])
-stpd['comments'] = stpd[['comments']].apply(removestopwords)
-print("abc:", stpd)
-simple_test2 = vectorizer.transform(simple_test)
-print(mnb.predict(simple_test2))
-
-
-
-#example of removing stop words and prediction
-simple_test = ['pogi']
-stpd = pd.DataFrame(data=simple_test, columns=['comments'])
-stpd['comments'] = stpd[['comments']].apply(removestopwords)
-print("abc:", stpd)
-simple_test2 = vectorizer.transform(simple_test)
-print(mnb.predict(simple_test2))
+print(classification_report(y_test_unbal, y_pred_unbal))
 """
 
+#--------------------------------------------------------------------------------------------- Predict (Balanced)
+mnb_bal = MultinomialNB(alpha=1.0)
+mnb_bal.fit(collected_features_bal, y_train_bal)
 
+y_pred_bal = mnb_bal.predict(collected_features_test_bal)
+
+print(classification_report(y_test_bal, y_pred_bal))
+
+
+#--------------------------------------------------------------------------------------------- Predict (Balanced)
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+svclassifier = SVC(kernel='linear')
+print('training svm')
+svclassifier.fit(collected_features_bal, y_train_bal)
+print('testing svm')
+y_pred_svm_bal = svclassifier.predict(collected_features_test_bal)
+svc_gxboost = svclassifier.score(collected_features_test_bal, y_test_bal)
+
+print('accuracy_gxboost: ', svc_gxboost)
+print('f1 score: ', f1_score(y_test_bal, y_pred_svm_bal, average="macro"))
+print('precision score: ', precision_score(y_test_bal, y_pred_svm_bal, average="macro"))
+print('recall score', recall_score(y_test_bal, y_pred_svm_bal, average="macro"))
 
 
 
