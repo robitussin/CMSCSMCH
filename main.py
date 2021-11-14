@@ -88,27 +88,34 @@ ytcomments_verlyn_drop.to_excel("subset3-verlyn-offensive.xlsx", index=False)
 #--------------------------------------------------------------------------------------------- PRE PROCESSING
 #pd.set_option('display.max_colwidth', None)
 dataset = pd.read_excel('../offensivedetection/clean datasets/mergedset.xlsx')
-print(len(dataset))
+#print(len(dataset))
 #Remove rows with NULL value
 dataset = dataset.dropna().reset_index(drop=True)
 
 dataset = dataset.rename(columns={"COMMENTS": "comments", "OFFENSIVE (Y or N)": "label"})
 
-#print("Label value counts: ", dataset['label'].value_counts())
-
 #Convert to lowercase
 dataset = dataset.apply(lambda x: x.astype(str).str.lower())
-""""
+
 #--------------------------------------------------------------------------------------------- Balanced Data
-#Balance data
-dataset_0 = dataset.loc[dataset['label'] == "y"][0:308]
-dataset_1 = dataset.loc[dataset['label'] == "n"][0:308]
+#Balance data (Undersampling)
 
-#dataset_0 = dataset.loc[dataset['label'] == "y"][0:5]
-#dataset_1 = dataset.loc[dataset['label'] == "n"][0:5]
+count_class_n, count_class_y = dataset.label.value_counts();
 
-dataset_bal = pd.concat([dataset_0, dataset_1], ignore_index=True)
-#dataset_bal = pd.concat([dataset_1, dataset_0], ignore_index=True)
+dataset_0 = dataset.loc[dataset['label'] == "y"]
+dataset_1 = dataset.loc[dataset['label'] == "n"]
+
+#UnderSampling
+#print("Undersample")
+dataset_1_under = dataset_1.sample(count_class_y)
+dataset_bal = pd.concat([dataset_0, dataset_1_under], ignore_index=True)
+
+#print(dataset_bal.shape)
+
+#Balance data (Oversampling)
+#print("Oversample")
+#dataset_0_over = dataset_0.sample(count_class_n, replace=True)
+#dataset_bal = pd.concat([dataset_0_over, dataset_1], ignore_index=True)
 
 dataset_bal = shuffle(dataset_bal)
 dataset_X = dataset_bal[['comments']]
@@ -121,14 +128,15 @@ X_test_bal.reset_index(drop=True, inplace=True)
 y_train_bal.reset_index(drop=True, inplace=True)
 y_test_bal.reset_index(drop=True, inplace=True)
 
-print("X_train :",X_train_bal.shape)
-print("X_test :",X_test_bal.shape)
-print("y_train :",y_train_bal.shape)
-print("y_test :",y_test_bal.shape)
-""""
-#--------------------------------------------------------------------------------------------- Unbalanced Data
+#print("X_train :",X_train_bal.shape)
+#print("X_test :",X_test_bal.shape)
+#print("y_train :",y_train_bal.shape)
+#print("y_test :",y_test_bal.shape)
 
-# Unbalanced data
+"""
+#--------------------------------------------------------------------------------------------- unbbalanced Data
+
+# unbbalanced data
 dataset_a = dataset.iloc[:, :-1].values
 dataset_b = dataset.iloc[:, -1].values
 
@@ -147,40 +155,6 @@ y_test_unbal.reset_index(drop=True, inplace=True)
 #print("X_test_unbal :",X_test_unbal.shape)
 #print("y_train_unbal :",y_train_unbal.shape)
 #print("y_test_unbal :",y_test_unbal.shape)
-
-#---------------------------------------------------------------------------------------------
-"""
-dataset_Y = dataset.loc[dataset['label'] == "y"]
-dataset_N = dataset.loc[dataset['label'] == "n"]
-
-eighty_percent_of_yes = len(dataset_Y) * .80
-eighty_percent_of_yes = round(eighty_percent_of_yes)
-
-eighty_percent_of_no = len(dataset_N) * .80
-eighty_percent_of_no = round(eighty_percent_of_no)
-
-dataset_Y_80_percent = dataset_Y.iloc[:eighty_percent_of_yes]
-dataset_N_80_percent = dataset_N.iloc[:eighty_percent_of_no]
-
-dataset_Y_20_percent = dataset_Y.iloc[eighty_percent_of_yes:]
-dataset_N_20_percent = dataset_N.iloc[eighty_percent_of_no:]
-
-dataset_train_80_percent = pd.concat([dataset_Y_80_percent, dataset_N_80_percent], ignore_index=True)
-dataset_v = dataset_train_80_percent[['comments']]
-dataset_w = dataset_train_80_percent['label']
-
-#dataset_test_20_percent = pd.concat([dataset_Y_20_percent, dataset_N_20_percent], ignore_index=True)
-#dataset_test_20_percent = dataset_test_20_percent['label']
-
-#print(dataset_train_80_percent.shape)
-#print(dataset_test_20_percent.shape)
-
-X_train_unbal, X_test_unbal, y_train_unbal, y_test_unbal = train_test_split(dataset_v, dataset_w, test_size=0.30, random_state=42)
-
-X_train_unbal.reset_index(drop=True, inplace=True)
-X_test_unbal.reset_index(drop=True, inplace=True)
-y_train_unbal.reset_index(drop=True, inplace=True)
-y_test_unbal.reset_index(drop=True, inplace=True)
 """
 #--------------------------------------------------------------------------------------------- FEATURE EXTRACTION METHODS
 
@@ -312,25 +286,7 @@ def get_consonant_cluster(comment):
 	else:
 		return 0
 
-#--------------------------------------------------------------------------------------------- Bar graph
-
-# Remove column name to remove from count
-#dataset_X = dataset_X.rename(columns={"comments": ""})
-#print(dataset_X)
-#wc = word_count_per_doc(dataset_X)
-#wl = tokenize(dataset_X)
-#wf = wordFrequency(wl)
-
-# Total number of words in the dataset
-#print("Word Count:", wc)
-#print("List of Words: ", wl)
-#print("Frequency: ", wf)
-
-#x = wl;
-#y = wf
-#plt.bar(x,y)
-#plt.show()
-
+"""
 #--------------------------------------------------------------------------------------------- Training Features (Unbalanced)
 # feature 1 - Number of words
 X_f1_unbal = X_train_unbal['comments'].apply(avg_words_per_sentence)
@@ -363,7 +319,10 @@ X_f7_unbal = X_train_unbal['comments'].apply(consonant_count)
 # feature 8 - Number of spaces in a comment
 X_f8_unbal = X_train_unbal['comments'].apply(space_count)
 
-collected_features_unbal = pd.concat([X_f1_unbal, X_f2_unbal, X_f3_unbal, X_f4_unbal, X_f5_unbal, X_f6_unbal, X_f7_unbal, X_f8_unbal], axis=1)
+# feature 9 - Consonant Count Density
+X_f9_unbal = X_train_unbal['comments'].apply(get_consonant_cluster)
+
+collected_features_unbal = pd.concat([X_f1_unbal, X_f2_unbal, X_f3_unbal, X_f4_unbal, X_f5_unbal, X_f6_unbal, X_f7_unbal, X_f8_unbal, X_f9_unbal], axis=1)
 collected_features_unbal = collected_features_unbal.to_numpy();
 
 y_train_unbal = y_train_unbal.to_numpy();
@@ -399,7 +358,10 @@ X_f7_test_unbal = X_test_unbal['comments'].apply(consonant_count)
 # feature 8 - Number of spaces in a comment
 X_f8_test_unbal = X_test_unbal['comments'].apply(space_count)
 
-collected_features_test_unbal = pd.concat([X_f1_test_unbal, X_f2_test_unbal, X_f3_test_unbal, X_f4_test_unbal, X_f5_test_unbal, X_f6_test_unbal, X_f7_test_unbal, X_f8_test_unbal], axis=1)
+# feature 9 - Consonant Count Density
+X_f9_test_unbal = X_test_unbal['comments'].apply(get_consonant_cluster)
+
+collected_features_test_unbal = pd.concat([X_f1_test_unbal, X_f2_test_unbal, X_f3_test_unbal, X_f4_test_unbal, X_f5_test_unbal, X_f6_test_unbal, X_f7_test_unbal, X_f8_test_unbal, X_f9_test_unbal], axis=1)
 """
 #--------------------------------------------------------------------------------------------- Training Features (Balanced)
 # feature 1 - Number of words
@@ -477,8 +439,8 @@ X_f8_test_bal = X_test_bal['comments'].apply(space_count)
 X_f9_test_bal = X_test_bal['comments'].apply(get_consonant_cluster)
 
 collected_features_test_bal = pd.concat([X_f1_test_bal, X_f2_test_bal, X_f3_test_bal, X_f4_test_bal, X_f5_test_bal, X_f6_test_bal, X_f7_test_bal, X_f8_test_bal, X_f9_test_bal], axis=1)
-
 """
+
 #--------------------------------------------------------------------------------------------- Predict (Unbalanced)
 mnb_unbal = MultinomialNB(alpha=1.0)
 mnb_unbal.fit(collected_features_unbal, y_train_unbal)
@@ -526,7 +488,7 @@ print('accuracy_gxboost: ', svc_gxboost)
 print('f1 score: ', f1_score(y_test_bal, y_pred_svm_bal, average="macro"))
 print('precision score: ', precision_score(y_test_bal, y_pred_svm_bal, average="macro"))
 print('recall score', recall_score(y_test_bal, y_pred_svm_bal, average="macro"))
-"""
+
 
 
 
